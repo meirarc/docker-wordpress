@@ -1,121 +1,36 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: >-
-  AWS CloudFormation Sample Template WordPress_Single_Instance: WordPress is web
-  software you can use to create a beautiful website or blog. This template
-  installs WordPress with a local MySQL database for storage. It demonstrates
-  using the AWS CloudFormation bootstrap scripts to deploy WordPress.
-  **WARNING** This template creates an Amazon EC2 instance. You will be billed
-  for the AWS resources used if you create a stack from this template.
+Description: AWS CloudFormation Sample Template WordPress_Single_Instance
+
 Parameters:
+
   KeyName:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
     Type: 'AWS::EC2::KeyPair::KeyName'
     Default: demo
-    ConstraintDescription: must be the name of an existing EC2 KeyPair.
   InstanceType:
     Description: WebServer EC2 instance type
     Type: String
     Default: t2.micro
-    AllowedValues:
-      - t1.micro
-      - t2.nano
-      - t2.micro
-      - t2.small
-      - t2.medium
-      - t2.large
-      - m1.small
-      - m1.medium
-      - m1.large
-      - m1.xlarge
-      - m2.xlarge
-      - m2.2xlarge
-      - m2.4xlarge
-      - m3.medium
-      - m3.large
-      - m3.xlarge
-      - m3.2xlarge
-      - m4.large
-      - m4.xlarge
-      - m4.2xlarge
-      - m4.4xlarge
-      - m4.10xlarge
-      - c1.medium
-      - c1.xlarge
-      - c3.large
-      - c3.xlarge
-      - c3.2xlarge
-      - c3.4xlarge
-      - c3.8xlarge
-      - c4.large
-      - c4.xlarge
-      - c4.2xlarge
-      - c4.4xlarge
-      - c4.8xlarge
-      - g2.2xlarge
-      - g2.8xlarge
-      - r3.large
-      - r3.xlarge
-      - r3.2xlarge
-      - r3.4xlarge
-      - r3.8xlarge
-      - i2.xlarge
-      - i2.2xlarge
-      - i2.4xlarge
-      - i2.8xlarge
-      - d2.xlarge
-      - d2.2xlarge
-      - d2.4xlarge
-      - d2.8xlarge
-      - hi1.4xlarge
-      - hs1.8xlarge
-      - cr1.8xlarge
-      - cc2.8xlarge
-      - cg1.4xlarge
-    ConstraintDescription: must be a valid EC2 instance type.
-  SSHLocation:
-    Description: The IP address range that can be used to SSH to the EC2 instances
-    Type: String
-    MinLength: '9'
-    MaxLength: '18'
-    Default: 0.0.0.0/0
-    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
-    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+
   DBName:
-    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
-    ConstraintDescription: must begin with a letter and contain only alphanumeric
-      characters.
     Default: wordpressdb
     Description: The WordPress database name
-    MaxLength: '64'
-    MinLength: '1'
     Type: String
   DBPassword:
-    AllowedPattern: '[a-zA-Z0-9]+'
     Default: peBRqjmNppXuH4G7
-    ConstraintDescription: must contain only alphanumeric characters.
     Description: The WordPress database admin account password
-    MaxLength: '41'
-    MinLength: '8'
     NoEcho: 'true'
     Type: String
   DBRootPassword:
-    AllowedPattern: '[a-zA-Z0-9]+'
     Default: NxAaPyjrWQm7aQVx
-    ConstraintDescription: must contain only alphanumeric characters.
     Description: MySQL root password
-    MaxLength: '41'
-    MinLength: '8'
     NoEcho: 'true'
     Type: String
   DBUser:
-    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     Default: ucvbyeev
-    ConstraintDescription: must begin with a letter and contain only alphanumeric
-      characters.
     Description: The WordPress database admin account username
-    MaxLength: '16'
-    MinLength: '1'
     Type: String
+
 Mappings:
   AWSInstanceType2Arch:
     t1.micro:
@@ -401,13 +316,13 @@ Mappings:
     us-west-2:
       HVM64: ami-01fee56b22f308154
       HVMG2: ami-0fe84a5b4563d8f27
+
 Resources:
+
   WebServerSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: >-
-        Enable HTTP access via port 80 locked down to the load balancer + SSH
-        access
+      GroupDescription: Enable HTTP access via port 80 locked down to the load balancer + SSH access
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: '80'
@@ -416,16 +331,23 @@ Resources:
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
-          CidrIp: !Ref SSHLocation
+          CidrIp: 0.0.0.0/0
+
   WebServer:
     Type: 'AWS::EC2::Instance'
+    
     Metadata:
       'AWS::CloudFormation::Init':
+        
         configSets:
           wordpress_install:
             - install_cfn
             - install_wordpress
             - configure_wordpress
+            
+            
+
+
         install_cfn:
           files:
             /etc/cfn/cfn-hup.conf:
@@ -473,6 +395,7 @@ Resources:
                 files:
                   - /etc/cfn/cfn-hup.conf
                   - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+        
         install_wordpress:
           packages:
             yum:
@@ -485,54 +408,67 @@ Resources:
               httpd24: []
           sources:
             /var/www/html: 'http://wordpress.org/latest.tar.gz'
+          
           files:
+            
             /tmp/setup.mysql:
-              content: !Join 
-                - ''
-                - - 'CREATE DATABASE '
-                  - !Ref DBName
-                  - |
-                    ;
-                  - CREATE USER '
-                  - !Ref DBUser
-                  - '''@''localhost'' IDENTIFIED BY '''
-                  - !Ref DBPassword
-                  - |
-                    ';
-                  - 'GRANT ALL ON '
-                  - !Ref DBName
-                  - .* TO '
-                  - !Ref DBUser
-                  - |
-                    '@'localhost';
-                  - |
-                    FLUSH PRIVILEGES;
+              content: !Sub |
+                CREATE DATABASE ${DBName};
+                CREATE USER '${DBUser}'@'localhost' IDENTIFIED BY '${DBPassword}';
+                GRANT ALL ON ${DBName}.* TO '${DBUser}'@'localhost';
+                FLUSH PRIVILEGES;
               mode: '000400'
               owner: root
               group: root
+            
             /tmp/create-wp-config:
-              content: !Join 
-                - ''
-                - - |
-                    #!/bin/bash -xe
-                  - >
-                    cp /var/www/html/wordpress/wp-config-sample.php
-                    /var/www/html/wordpress/wp-config.php
-                  - sed -i "s/'database_name_here'/'
-                  - !Ref DBName
-                  - |
-                    '/g" wp-config.php
-                  - sed -i "s/'username_here'/'
-                  - !Ref DBUser
-                  - |
-                    '/g" wp-config.php
-                  - sed -i "s/'password_here'/'
-                  - !Ref DBPassword
-                  - |
-                    '/g" wp-config.php
+              content: !Sub |
+                #!/bin/bash -ex
+                cp /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php
+                sed -i 's/database_name_here/${DBName}/g' /var/www/html/wordpress/wp-config.php
+                sed -i 's/username_here/${DBUser}/g' /var/www/html/wordpress/wp-config.php
+                sed -i 's/password_here/${DBPassword}/g' /var/www/html/wordpress/wp-config.php
               mode: '000500'
               owner: root
               group: root
+            
+            /tmp/change_owners:
+              content: !Sub |
+                #!/bin/bash -ex
+                sudo chown -R apache:apache /var/www/html/wordpress
+                sudo curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+                sudo php wp-cli.phar --info
+                chmod +x wp-cli.phar
+                sudo mv wp-cli.phar /usr/local/bin/wp
+                sudo chmod -R 777 /var/www/html/wordpress
+              mode: '000500'
+              owner: root
+              group: root
+
+            /tmp/wp-core-install:
+              content: !Sub |
+                #!/bin/bash -ex
+                my_ip=$(curl http://checkip.amazonaws.com)
+                /usr/local/bin/wp core install --url=http://$my_ip/wordpress --title=rafael --admin_user=rafael.cabrera --admin_password=rafael.cabrera --admin_email=rafael.cabrera@gmail.com --allow-root --path=/var/www/html/wordpress/
+              mode: '000777'
+              owner: root
+              group: root
+            
+            /tmp/wp-plugin-install:
+              content: !Sub |
+                #!/bin/bash -ex
+                /usr/local/bin/wp plugin delete akismet --allow-root
+                /usr/local/bin/wp plugin delete hello --allow-root
+                /usr/local/bin/wp plugin install woocommerce --activate --allow-root
+                /usr/local/bin/wp theme install astra --activate --allow-root
+                /usr/local/bin/wp theme delete twentytwentyone --allow-root
+                /usr/local/bin/wp theme delete twentytwentythree --allow-root
+                /usr/local/bin/wp theme delete twentytwentytwo --allow-root
+                /usr/local/bin/wp post delete 1 --allow-root
+              mode: '000777'
+              owner: root
+              group: root
+          
           services:
             sysvinit:
               httpd:
@@ -541,37 +477,29 @@ Resources:
               mysqld:
                 enabled: 'true'
                 ensureRunning: 'true'
+        
         configure_wordpress:
           commands:
             01_set_mysql_root_password:
-              command: !Join 
-                - ''
-                - - mysqladmin -u root password '
-                  - !Ref DBRootPassword
-                  - ''''
-              test: !Join 
-                - ''
-                - - '$(mysql '
-                  - !Ref DBName
-                  - ' -u root --password='''
-                  - !Ref DBRootPassword
-                  - ''' >/dev/null 2>&1 </dev/null); (( $? != 0 ))'
+              command: !Sub mysqladmin -u root password ${DBRootPassword}
+              test: !Sub $(mysql ${DBName} -u root --password='${DBRootPassword}' >/dev/null 2>&1 </dev/null); (( $? != 0 ))
             02_create_database:
-              command: !Join 
-                - ''
-                - - mysql -u root --password='
-                  - !Ref DBRootPassword
-                  - ''' < /tmp/setup.mysql'
-              test: !Join 
-                - ''
-                - - '$(mysql '
-                  - !Ref DBName
-                  - ' -u root --password='''
-                  - !Ref DBRootPassword
-                  - ''' >/dev/null 2>&1 </dev/null); (( $? != 0 ))'
+              command: !Sub mysql -u root --password='${DBRootPassword}' < /tmp/setup.mysql
+              test: !Sub $(mysql ${DBName} -u root --password='${DBRootPassword}' >/dev/null 2>&1 </dev/null); (( $? != 0 ))
             03_configure_wordpress:
               command: /tmp/create-wp-config
               cwd: /var/www/html/wordpress
+            04_change_owners:
+              command: /tmp/change_owners
+              cwd: /tmp
+            05_wp-core-install:
+              command: /tmp/wp-core-install
+              cwd: /tmp
+            06_wp-plugin-install:
+              command: /tmp/wp-plugin-install
+              cwd: /var/www/html/wordpress
+              
+
     Properties:
       ImageId: !FindInMap 
         - AWSRegionArch2AMI
@@ -587,27 +515,16 @@ Resources:
       UserData: !Base64
         Fn::Base64: !Sub |
            #!/bin/bash -xe
-           sudo yum update -y
-           sudo yum update -y aws-cfn-bootstrap
+           # sudo yum update -y
+           # sudo yum update -y aws-cfn-bootstrap
            /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource WebServer --configsets wordpress_install --region ${AWS::Region}
            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource WebServer --region ${AWS::Region}
-           sudo chown -R apache:apache /var/www/html/wordpress
-           sudo curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-           sudo php wp-cli.phar --info
-           chmod +x wp-cli.phar
-           sudo mv wp-cli.phar /usr/local/bin/wp
-           sudo chmod -R 777 /var/www/html/wordpress
-           wp --path=/var/www/html/wordpress plugin install classic-editor
+  
     CreationPolicy:
       ResourceSignal:
         Timeout: PT15M
+
 Outputs:
   WebsiteURL:
-    Value: !Join 
-      - ''
-      - - 'http://'
-        - !GetAtt 
-          - WebServer
-          - PublicDnsName
-        - /wordpress
+    Value: !Sub 'http://${WebServer.PublicDnsName}/wordpress'
     Description: WordPress Website
