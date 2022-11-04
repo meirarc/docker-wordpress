@@ -1,6 +1,42 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: AWS CloudFormation Sample Template WordPress_Single_Instance
 
+
+Metadata:
+  License: Apache-2.0
+  AWS::CloudFormation::Interface:
+    
+    ParameterGroups:
+      - Label:
+          default: "Wordpress"
+        Parameters:
+          - WPTitle
+          - WPAdminUser
+          - WPAdminPassword
+          - WPAdminEmail
+      
+      - Label:
+          default: "Wordpress Configuration" 
+        Parameters:
+          - BlogDescription
+          - UsersCanRegister
+          - TimezoneString
+          - PermalinkStructure
+
+      - Label:
+          default: "Database"
+        Parameters:
+          - DBName
+          - DBUser
+          - DBPassword
+          - DBRootPassword
+      
+      - Label:
+          default: "Instance connection"
+        Parameters:
+          - InstanceType
+          - KeyName
+
 Parameters:
 
   KeyName:
@@ -30,7 +66,42 @@ Parameters:
     Default: ucvbyeev
     Description: The WordPress database admin account username
     Type: String
-
+  
+  WPTitle: 
+    Default: 'Site do Rafael'
+    Description: The WordPress website title
+    Type: String
+  WPAdminUser:
+    Default: 'rafael.cabrera'
+    Description: The WordPress Admin User
+    Type: String
+  WPAdminPassword:
+    Default: 'rafael.cabrera'
+    NoEcho: 'true'
+    Description: The WordPress Admin Password
+    Type: String
+  WPAdminEmail:
+    Default: 'rafael.cabrera.demo1@gmail.com'
+    Description: 'The WordPress Admin Email'
+    Type: String
+  
+  BlogDescription:
+    Default: 'Wordpress blogline Description'
+    Description: 'Wordpress blogline Description'
+    Type: String
+  UsersCanRegister:
+    Default: '1'
+    Description: 'Membership allowed'
+    Type: String
+  TimezoneString:
+    Default: 'America/Sao_Paulo'
+    Description: 'Membership allowed'
+    Type: String
+  PermalinkStructure:
+    Default: '/%postname%/'
+    Description: 'Permalink Structure'
+    Type: String
+  
 Mappings:
   AWSInstanceType2Arch:
     t1.micro:
@@ -344,9 +415,6 @@ Resources:
             - install_cfn
             - install_wordpress
             - configure_wordpress
-            
-            
-
 
         install_cfn:
           files:
@@ -449,7 +517,7 @@ Resources:
               content: !Sub |
                 #!/bin/bash -ex
                 my_ip=$(curl http://checkip.amazonaws.com)
-                /usr/local/bin/wp core install --url=http://$my_ip/wordpress --title=rafael --admin_user=rafael.cabrera --admin_password=rafael.cabrera --admin_email=rafael.cabrera@gmail.com --allow-root --path=/var/www/html/wordpress/
+                /usr/local/bin/wp core install --url=http://$my_ip/wordpress --title='${WPTitle}' --admin_user='${WPAdminUser}' --admin_password='${WPAdminPassword}' --admin_email='${WPAdminEmail}' --allow-root --path=/var/www/html/wordpress/
               mode: '000777'
               owner: root
               group: root
@@ -459,12 +527,38 @@ Resources:
                 #!/bin/bash -ex
                 /usr/local/bin/wp plugin delete akismet --allow-root
                 /usr/local/bin/wp plugin delete hello --allow-root
-                /usr/local/bin/wp plugin install woocommerce --activate --allow-root
-                /usr/local/bin/wp theme install astra --activate --allow-root
+                
+                /usr/local/bin/wp plugin install woocommerce --allow-root
+                /usr/local/bin/wp plugin install elementor --allow-root
+                /usr/local/bin/wp plugin install wp-mail-smtp --allow-root
+                # /usr/local/bin/wp plugin install akismet --allow-root
+
+                # /usr/local/bin/wp plugin activate woocommerce --allow-root
+                # /usr/local/bin/wp plugin activate elementor --allow-root
+                # /usr/local/bin/wp plugin activate akismet --allow-root
+                /usr/local/bin/wp plugin activate wp-mail-smtp --allow-root
+                
+                /usr/local/bin/wp theme install kadence --activate --allow-root
+                
                 /usr/local/bin/wp theme delete twentytwentyone --allow-root
                 /usr/local/bin/wp theme delete twentytwentythree --allow-root
                 /usr/local/bin/wp theme delete twentytwentytwo --allow-root
+                
                 /usr/local/bin/wp post delete 1 --allow-root
+                /usr/local/bin/wp post delete 2 --allow-root
+                
+
+              mode: '000777'
+              owner: root
+              group: root
+            
+            /tmp/wp-update-configuration:
+              content: !Sub |
+                #!/bin/bash -ex
+                /usr/local/bin/wp option update blogdescription "${BlogDescription}"  --allow-root
+                /usr/local/bin/wp option update users_can_register ${UsersCanRegister} --allow-root
+                /usr/local/bin/wp option update timezone_string "${TimezoneString}" --allow-root
+                
               mode: '000777'
               owner: root
               group: root
@@ -498,6 +592,10 @@ Resources:
             06_wp-plugin-install:
               command: /tmp/wp-plugin-install
               cwd: /var/www/html/wordpress
+            07_wp-update-configuration:
+              command: /tmp/wp-update-configuration
+              cwd: /var/www/html/wordpress
+            
               
 
     Properties:
@@ -515,8 +613,8 @@ Resources:
       UserData: !Base64
         Fn::Base64: !Sub |
            #!/bin/bash -xe
-           # sudo yum update -y
-           # sudo yum update -y aws-cfn-bootstrap
+           
+           sudo yum update -y aws-cfn-bootstrap
            /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource WebServer --configsets wordpress_install --region ${AWS::Region}
            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource WebServer --region ${AWS::Region}
   
@@ -528,3 +626,9 @@ Outputs:
   WebsiteURL:
     Value: !Sub 'http://${WebServer.PublicDnsName}/wordpress'
     Description: WordPress Website
+  SSHConnection:
+    Value: !Sub "ssh -i demo.pem ec2-user@${WebServer.PublicDnsName}"
+    Description: SSH Connection
+  WebsiteAdmin:
+    Value: !Sub 'http://${WebServer.PublicDnsName}/wordpress/wp-admin'
+    Description: WordPress Admin 
