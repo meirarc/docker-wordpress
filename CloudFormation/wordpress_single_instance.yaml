@@ -613,7 +613,7 @@ Resources:
       UserData: !Base64 
         Fn::Base64: !Sub | 
            #!/bin/bash -xe
-           
+           sudo yum update -y
            sudo yum update -y aws-cfn-bootstrap
            /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource WebServer --configsets wordpress_install --region ${AWS::Region}
            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource WebServer --region ${AWS::Region}

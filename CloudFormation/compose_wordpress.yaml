@@ -1,30 +1,107 @@
-AWSTemplateFormatVersion: "2010-09-09"
-Description: Install WordPress using Docker and Docker Compose template
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS CloudFormation Sample Template WordPress_Single_Instance
+
+
+Metadata:
+  License: Apache-2.0
+  AWS::CloudFormation::Interface:
+    
+    ParameterGroups:
+      - Label:
+          default: "Wordpress"
+        Parameters:
+          - WPTitle
+          - WPAdminUser
+          - WPAdminPassword
+          - WPAdminEmail
+      
+      - Label:
+          default: "Wordpress Configuration" 
+        Parameters:
+          - BlogDescription
+          - UsersCanRegister
+          - TimezoneString
+          - PermalinkStructure
+
+      - Label:
+          default: "Database"
+        Parameters:
+          - DBName
+          - DBUser
+          - DBPassword
+          - DBRootPassword
+      
+      - Label:
+          default: "Instance connection"
+        Parameters:
+          - InstanceType
+          - KeyName
 
 Parameters:
 
   KeyName:
-    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    Type: 'AWS::EC2::KeyPair::KeyName'
     Default: demo
   InstanceType:
+    Description: WebServer EC2 instance type
     Type: String
     Default: t2.micro
-  DBRootPassword:
-    Type: String
-    Default: passw0rd
-    NoEcho: true
+
   DBName:
-    Type: String
     Default: wordpressdb
-  DBUser:
+    Description: The WordPress database name
     Type: String
-    Default: dbAdmin
   DBPassword:
+    Default: peBRqjmNppXuH4G7
+    Description: The WordPress database admin account password
+    NoEcho: 'true'
     Type: String
-    Default: passw0rd
-    NoEcho: true
-
-
+  DBRootPassword:
+    Default: NxAaPyjrWQm7aQVx
+    Description: MySQL root password
+    NoEcho: 'true'
+    Type: String
+  DBUser:
+    Default: ucvbyeev
+    Description: The WordPress database admin account username
+    Type: String
+  
+  WPTitle: 
+    Default: 'Site do Rafael'
+    Description: The WordPress website title
+    Type: String
+  WPAdminUser:
+    Default: 'rafael.cabrera'
+    Description: The WordPress Admin User
+    Type: String
+  WPAdminPassword:
+    Default: 'rafael.cabrera'
+    NoEcho: 'true'
+    Description: The WordPress Admin Password
+    Type: String
+  WPAdminEmail:
+    Default: 'rafael.cabrera.demo1@gmail.com'
+    Description: 'The WordPress Admin Email'
+    Type: String
+  
+  BlogDescription:
+    Default: 'Wordpress blogline Description'
+    Description: 'Wordpress blogline Description'
+    Type: String
+  UsersCanRegister:
+    Default: '1'
+    Description: 'Membership allowed'
+    Type: String
+  TimezoneString:
+    Default: 'America/Sao_Paulo'
+    Description: 'Membership allowed'
+    Type: String
+  PermalinkStructure:
+    Default: '/%postname%/'
+    Description: 'Permalink Structure'
+    Type: String
+  
 Mappings:
   AWSInstanceType2Arch:
     t1.micro:
@@ -314,23 +391,23 @@ Mappings:
 Resources:
 
   WebServerSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
+    Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: Enable port 80 and 22
+      GroupDescription: Enable HTTP access via port 80 locked down to the load balancer + SSH access
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
+          FromPort: '80'
+          ToPort: '80'
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
+          FromPort: '22'
+          ToPort: '22'
           CidrIp: 0.0.0.0/0
-  
+
   WebServer:
-    Type: AWS::EC2::Instance
+    Type: 'AWS::EC2::Instance'
+    
     Properties:
-      InstanceType: !Ref InstanceType
       ImageId: !FindInMap 
         - AWSRegionArch2AMI
         - !Ref 'AWS::Region'
@@ -338,85 +415,74 @@ Resources:
           - AWSInstanceType2Arch
           - !Ref InstanceType
           - Arch
-      KeyName: !Ref KeyName
-      SecurityGroupIds:
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
         - !Ref WebServerSecurityGroup
-      UserData: # very important
-        "Fn::Base64": !Sub |
-          #!/bin/bash -ex
-          /opt/aws/bin/cfn-init --stack ${AWS::StackName} --resource WebServer --configsets install-and-init --region ${AWS::Region}
-          #docker-compose -f /tmp/docker-compose.yaml up -d
-    Metadata:
-      AWS::CloudFormation::Init:
-        configSets:
-          install-and-init:
-            - install-packages
-            - service-init
-            - service-config
-            - configure-services
-        install-packages:
-          packages:
-            yum:
-              docker: []
-          commands:
-            01_install_docker_compose:
-              command: "pip install docker-compose"
-            02_check_docker_compose_version:
-              command: "echo $(/usr/local/bin/docker-compose -v) > /tmp/docker_compose_version.txt"
-        service-init:
+      KeyName: !Ref KeyName
+      
+      UserData: !Base64 
+        Fn::Base64: !Sub | 
+          #!/bin/bash
+          
+          # Install Docker
+          sudo yum update -y
+          sudo yum install docker -y
+          sudo service docker start
+          sudo usermod -a -G docker ec2-user
+          
+          # Install docker-compose
+          sudo curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          
+          # Create docker-composse file
+          echo "
+          version: '3.1'
+
           services:
-            sysvinit:
-              docker:
-                enabled: true
-                ensureRunning: true
-        service-config:
-          files:
-            "/tmp/docker-compose.yaml":
-              content: !Sub |
-                version: '3.7'
-                services:
-                  wp_db:
-                    image: mysql:5.7
-                    volumes:
-                      - "./.data/db:/var/lib/mysql"
-                    restart: always
-                    environment:
-                      MYSQL_ROOT_PASSWORD: ${DBRootPassword}
-                      MYSQL_DATABASE: ${DBName}
-                      MYSQL_USER: ${DBUser}
-                      MYSQL_PASSWORD: ${DBPassword}
-                  wordpress:
-                    depends_on:
-                      - wp_db
-                    image: wordpress:latest
-                    volumes:
-                      - "./wp:/var/www/html"
-                    links:
-                      - wp_db:mysql
-                    ports:
-                      - "80:80"
-                    restart: always
-                    environment:
-                      WORDPRESS_DB_NAME: ${DBName}
-                      WORDPRESS_DB_USER: ${DBUser}
-                      WORDPRESS_DB_PASSWORD: ${DBPassword}
-              mode: 000500
-              owner: root
-              group: root
-            "/tmp/run-docker-compose":
-              content: !Sub |
-                #!/bin/bash -ex
-                /usr/local/bin/docker-compose -f /tmp/docker-compose.yaml up -d
-              mode: 000500
-              owner: root
-              group: root
-        configure-services:
-          commands:
-            01_run_docker_compose:
-              command: "/tmp/run-docker-compose"
-              #command: "/usr/local/bin/docker-compose -f /tmp/docker-compose.yml up -d"
+
+            wordpress:
+              image: wordpress
+              restart: always
+              ports:
+                - 8080:80
+              environment:
+                WORDPRESS_DB_HOST: db
+                WORDPRESS_DB_USER: exampleuser
+                WORDPRESS_DB_PASSWORD: examplepass
+                WORDPRESS_DB_NAME: exampledb
+              volumes:
+                - wordpress:/var/www/html
+
+            db:
+              image: mysql:5.7
+              restart: always
+              environment:
+                MYSQL_DATABASE: exampledb
+                MYSQL_USER: exampleuser
+                MYSQL_PASSWORD: examplepass
+                MYSQL_RANDOM_ROOT_PASSWORD: '1'
+              volumes:
+                - db:/var/lib/mysql
+
+          volumes:
+            wordpress:
+            db:
+          " > docker-compose.yaml
+          
+          # Run docker-composse
+          sudo /usr/local/bin/docker-compose up -d
+  
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
 
 Outputs:
   WebsiteURL:
-    Description: Visit the HTTP site over here
-    Value: !Sub http://${WebServer.PublicDnsName}/wordpress
+    Value: !Sub 'http://${WebServer.PublicDnsName}/wordpress'
+    Description: WordPress Website
+  SSHConnection:
+    Value: !Sub "ssh -i demo.pem ec2-user@${WebServer.PublicDnsName}"
+    Description: SSH Connection
+  WebsiteAdmin:
+    Value: !Sub 'http://${WebServer.PublicDnsName}/wordpress/wp-admin'
+    Description: WordPress Admin 
