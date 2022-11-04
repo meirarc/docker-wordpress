@@ -611,7 +611,7 @@ Resources:
         - !Ref WebServerSecurityGroup
       KeyName: !Ref KeyName
       UserData: !Base64 
-        Fn::Base64: !Sub |
+        Fn::Base64: !Sub | 
            #!/bin/bash -xe
            
            sudo yum update -y aws-cfn-bootstrap
