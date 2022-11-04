@@ -610,7 +610,7 @@ Resources:
       SecurityGroups:
         - !Ref WebServerSecurityGroup
       KeyName: !Ref KeyName
-      UserData: !Base64
+      UserData: !Base64 
         Fn::Base64: !Sub |
            #!/bin/bash -xe
            
